@@ -1,0 +1,122 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #000;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+}
+
+#renderCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    outline: none;
+}
+
+/* HUD Panels */
+.hud-panel {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    font-family: 'Courier New', Courier, monospace;
+    padding: 12px;
+    border-radius: 4px;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+    pointer-events: auto;
+    z-index: 100;
+}
+
+.debug-panel {
+    top: 15px;
+    left: 15px;
+    min-width: 220px;
+}
+
+.control-panel {
+    top: 15px;
+    right: 15px;
+    min-width: 220px;
+}
+
+.inspector-panel {
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 320px;
+    text-align: center;
+}
+
+.hud-header {
+    border-bottom: 1px solid #00ff00;
+    margin-bottom: 10px;
+    font-weight: bold;
+    font-size: 1.0em;
+    padding-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.hud-item {
+    font-size: 0.85em;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.hud-label {
+    color: #88ff88;
+    margin-right: 10px;
+}
+
+.hud-value {
+    color: #ffffff;
+    text-align: right;
+}
+
+.btn-hud {
+    background: transparent;
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    font-size: 0.8em;
+    padding: 2px 8px;
+    margin: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-hud:hover {
+    background: rgba(0, 255, 0, 0.2);
+    box-shadow: 0 0 5px #00ff00;
+}
+
+.btn-hud-danger {
+    border-color: #ff0000;
+    color: #ff0000;
+}
+
+.btn-hud-danger:hover {
+    background: rgba(255, 0, 0, 0.2);
+    box-shadow: 0 0 5px #ff0000;
+}
+
+.hud-input {
+    background: rgba(0, 50, 0, 0.5);
+    border: 1px solid #00ff00;
+    color: #ffffff;
+    padding: 2px 5px;
+    font-size: 0.8em;
+    width: 60px;
+}
+
+select.hud-input {
+    width: 100%;
+    margin-bottom: 10px;
+}
