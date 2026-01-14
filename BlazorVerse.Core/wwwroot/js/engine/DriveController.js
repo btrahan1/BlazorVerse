@@ -4,6 +4,7 @@ export class DriveController {
         this.targetMesh = null;
         this.scene = null;
         this.mainCamera = null;
+        this.cameraBeforeDrive = null;
         this.followCam = null;
         this.canvas = null;
         this.inputMap = {};
@@ -31,8 +32,9 @@ export class DriveController {
         this.active = true;
         this.targetMesh = mesh;
         this.inputMap = {};
+        this.cameraBeforeDrive = this.scene.activeCamera;
 
-        this.mainCamera.detachControl();
+        this.scene.activeCamera.detachControl();
 
         if (this.followCam) this.followCam.dispose();
         this.followCam = new BABYLON.FollowCamera("followCam", mesh.position, this.scene);
@@ -55,8 +57,10 @@ export class DriveController {
         this.active = false;
         this.targetMesh = null;
 
-        this.scene.activeCamera = this.mainCamera;
-        this.mainCamera.attachControl(this.canvas, true);
+        const restoreCam = this.cameraBeforeDrive || this.mainCamera;
+        this.scene.activeCamera = restoreCam;
+        restoreCam.attachControl(this.canvas, true);
+
         if (this.followCam) this.followCam.dispose();
 
         window.removeEventListener("keydown", this.handleKeyDown);

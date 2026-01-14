@@ -160,6 +160,7 @@
         using var reader = new System.IO.StreamReader(stream);
         var json = await reader.ReadToEndAsync();
         await JSRuntime.InvokeVoidAsync("BabylonInterop.loadScene", json);
+        await JSRuntime.InvokeVoidAsync("BabylonInterop.setEditorCameraMode", "walk");
         _sceneLoaded = true;
         StateHasChanged();
     }
