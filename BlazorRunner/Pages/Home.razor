@@ -26,6 +26,18 @@
     </div>
 </div>
 
+<!-- Player Health HUD -->
+@if (_sceneLoaded)
+{
+    <div class="hud-panel" style="top: 15px; left: 50%; transform: translateX(-50%); width: 300px; text-align: center; border-color: @(_playerHp < 30 ? "#ff0000" : "#00ff00");">
+        <div class="hud-header">❤️ SURVIVOR STATUS</div>
+        <div style="background: rgba(0,0,0,0.5); height: 20px; border: 1px solid #00ff00; margin: 10px 0; overflow: hidden; border-radius: 10px;">
+            <div style="background: linear-gradient(90deg, #ff0000, #00ff00); width: @(_playerHp)%; height: 100%; transition: width 0.3s ease;"></div>
+        </div>
+        <div style="font-size: 0.8em; color: #fff;">HEALTH: @_playerHp%</div>
+    </div>
+}
+
 <!-- Center: Load Prompt -->
 @if (!_sceneLoaded)
 {
@@ -82,6 +94,14 @@
     </div>
 }
 
+<!-- Action Bar (Attack) -->
+@if (_sceneLoaded && !_isDriving)
+{
+    <div style="position: absolute; bottom: 20px; left: 20px;">
+        <button class="btn-hud" style="font-size: 1.5em; padding: 10px 20px; background: #ff0000; color: #fff;" @onclick="Attack">⚔️ ATTACK (SPACE)</button>
+    </div>
+}
+
 @if (_raceFinished)
 {
     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 200;">
@@ -104,6 +124,7 @@
     private bool _raceFinished = false;
     private double _finalTime = 0;
     private bool _fogEnabled = true;
+    private int _playerHp = 100;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -123,6 +144,15 @@
             }
 
             await JSRuntime.InvokeVoidAsync("BabylonInterop.init", "renderCanvas", _objRef);
+            
+            // Add key listener for Spacebar
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                window.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && window.BabylonInterop) {
+                        window.BabylonInterop.playerAttack();
+                    }
+                });
+            ");
         }
     }
 
@@ -151,6 +181,11 @@
         await JSRuntime.InvokeVoidAsync("BabylonInterop.exitDriveMode");
     }
 
+    private async Task Attack()
+    {
+        await JSRuntime.InvokeVoidAsync("BabylonInterop.playerAttack");
+    }
+
     private async Task HandleFileLoad(InputFileChangeEventArgs e)
     {
         var file = e.File;
@@ -161,6 +196,7 @@
         var json = await reader.ReadToEndAsync();
         await JSRuntime.InvokeVoidAsync("BabylonInterop.loadScene", json);
         await JSRuntime.InvokeVoidAsync("BabylonInterop.setEditorCameraMode", "walk");
+        await JSRuntime.InvokeVoidAsync("BabylonInterop.setAIEnabled", true);
         _sceneLoaded = true;
         StateHasChanged();
     }
@@ -193,6 +229,17 @@
         _raceFinished = true;
         _finalTime = finalTime;
         _isDriving = false; 
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void UpdatePlayerHealth(int hp)
+    {
+        _playerHp = hp;
+        if (_playerHp <= 0) {
+            _playerHp = 0;
+            // Handle death?
+        }
         StateHasChanged();
     }
 

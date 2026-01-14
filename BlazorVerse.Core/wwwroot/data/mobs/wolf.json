@@ -1,0 +1,76 @@
+{
+    "id": "wolf",
+    "name": "Wolf",
+    "visuals": [
+        {
+            "name": "body",
+            "type": "box",
+            "size": [
+                0.6,
+                0.6,
+                1.4
+            ],
+            "pos": [
+                0,
+                0.45,
+                0
+            ],
+            "color": {
+                "r": 0.4,
+                "g": 0.4,
+                "b": 0.45
+            }
+        },
+        {
+            "name": "head",
+            "type": "box",
+            "size": [
+                0.4,
+                0.4,
+                0.5
+            ],
+            "pos": [
+                0,
+                0.7,
+                0.8
+            ],
+            "color": {
+                "r": 0.35,
+                "g": 0.35,
+                "b": 0.4
+            }
+        },
+        {
+            "name": "tail",
+            "type": "box",
+            "size": [
+                0.1,
+                0.1,
+                0.6
+            ],
+            "pos": [
+                0,
+                0.6,
+                -0.9
+            ],
+            "color": {
+                "r": 0.3,
+                "g": 0.3,
+                "b": 0.35
+            }
+        }
+    ],
+    "stats": {
+        "hp": 40,
+        "maxHp": 40,
+        "speed": 0.08,
+        "atk": 8,
+        "def": 1
+    },
+    "behavior": {
+        "type": "hostile",
+        "aggroRange": 18,
+        "roamRadius": 15,
+        "attackCooldown": 1000
+    }
+}

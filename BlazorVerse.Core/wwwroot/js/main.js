@@ -3,6 +3,7 @@ import { EntityManager } from './engine/EntityManager.js';
 import { DriveController } from './engine/DriveController.js';
 import { Serializer } from './engine/Serializer.js';
 import { RaceManager } from './engine/RaceManager.js';
+import { AIManager } from './engine/AIManager.js';
 
 class BlazorVerseEngine {
     constructor() {
@@ -11,6 +12,7 @@ class BlazorVerseEngine {
         this.driveController = new DriveController();
         this.serializer = new Serializer();
         this.raceManager = new RaceManager();
+        this.aiManager = new AIManager();
         this.dotNetRef = null;
     }
 
@@ -26,6 +28,7 @@ class BlazorVerseEngine {
         await this.sceneManager.init(canvas, (mesh) => this.onMeshSelected(mesh));
         this.entityManager.init(this.sceneManager.scene, this.sceneManager.shadowGen);
         this.driveController.init(this.sceneManager.scene, this.sceneManager.camera, canvas);
+        this.aiManager.init(this.sceneManager.scene, this.dotNetRef);
         this.serializer.init(this.sceneManager, this.entityManager);
 
         this.raceManager.init((time) => {
@@ -38,6 +41,7 @@ class BlazorVerseEngine {
                 this.sceneManager.scene.render();
                 this.driveController.update();
                 this.entityManager.animate();
+                this.aiManager.update();
                 this.raceManager.update();
             }
         });
@@ -53,17 +57,21 @@ class BlazorVerseEngine {
     deleteMesh(id) { this.entityManager.deleteMesh(id); }
 
     setVehiclePower(value) { this.driveController.setPower(value); }
+    playerAttack() { this.aiManager.playerAttack(); }
+    setAIEnabled(enabled) { this.aiManager.setEnabled(enabled); }
 
     enterDriveMode(id) {
         const mesh = this.sceneManager.scene.getMeshByID(id);
         if (mesh) {
             this.driveController.enter(mesh);
+            this.aiManager.setPlayer(mesh); // AI now tracks this vehicle/player
             this.raceManager.startRace(mesh, this.sceneManager.scene);
         }
     }
 
     exitDriveMode() {
         this.driveController.exit();
+        this.aiManager.setPlayer(this.sceneManager.activeCamera === this.sceneManager.fpCamera ? this.sceneManager.fpCamera : null);
         this.raceManager.reset();
     }
 

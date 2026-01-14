@@ -55,6 +55,8 @@
             <option value="wall">Wall 🧱</option>
             <option value="car">Car 🚗</option>
             <option value="walker">Walker 🤖</option>
+            <option value="goblin">Goblin 👺</option>
+            <option value="wolf">Wolf 🐺</option>
             <option value="finish">Finish Line 🏁</option>
         </select>
         
@@ -62,10 +64,16 @@
 
         <div style="border-top: 1px solid rgba(0, 255, 0, 0.2); margin-top: 10px; padding-top: 10px;">
             <div class="hud-label">CAMERA MODE:</div>
-            <div style="display: flex; gap: 5px;">
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
                 <button class="btn-hud @(_cameraMode == "orbit" ? "active" : "")" style="flex: 1;" @onclick='() => SetCameraMode("orbit")'>🦅 ORBIT</button>
                 <button class="btn-hud @(_cameraMode == "walk" ? "active" : "")" style="flex: 1;" @onclick='() => SetCameraMode("walk")'>🚶 WALK</button>
             </div>
+            
+            <button class="btn-hud w-100 @(_aiEnabled ? "active" : "")" 
+                    style="background: @(_aiEnabled ? "rgba(0, 255, 0, 0.2)" : "transparent");"
+                    @onclick="ToggleAI">
+                @(_aiEnabled ? "⏸️ PAUSE AI" : "▶️ START AI")
+            </button>
         </div>
     </div>
 }
@@ -215,6 +223,7 @@
     private double _finalTime = 0;
     private bool _fogEnabled = true;
     private string _cameraMode = "orbit";
+    private bool _aiEnabled = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -234,6 +243,7 @@
             }
 
             await JSRuntime.InvokeVoidAsync("BabylonInterop.init", "renderCanvas", _objRef);
+            await JSRuntime.InvokeVoidAsync("BabylonInterop.setAIEnabled", _aiEnabled);
         }
     }
 
@@ -290,6 +300,12 @@
     {
         _fogEnabled = (bool)(e.Value ?? true);
         await JSRuntime.InvokeVoidAsync("BabylonInterop.toggleFog", _fogEnabled);
+    }
+
+    private async Task ToggleAI()
+    {
+        _aiEnabled = !_aiEnabled;
+        await JSRuntime.InvokeVoidAsync("BabylonInterop.setAIEnabled", _aiEnabled);
     }
 
     private async Task SetCameraMode(string mode)

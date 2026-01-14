@@ -11,14 +11,48 @@ export class EntityManager {
     }
 
     spawnRandom(type) {
-        const x = (Math.random() - 0.5) * 10;
-        const z = (Math.random() - 0.5) * 10;
+        const x = (Math.random() - 0.5) * 20;
+        const z = (Math.random() - 0.5) * 20;
 
         let y = 1.0;
         if (type === "car") y = 0.6;
         if (type === "walker") y = 1.25;
 
+        if (type === "goblin" || type === "wolf") {
+            this.spawnRecipe(type, { x, y: 1.0, z });
+            return;
+        }
+
         this.createEntity(type, { x, y, z }, null, null, null);
+    }
+
+    async spawnRecipe(recipeId, pos) {
+        const recipe = await this.loadRecipe(recipeId);
+        if (recipe) {
+            this.createFromRecipe(recipe, pos);
+        }
+    }
+
+    async loadRecipe(recipeId) {
+        try {
+            // Try different paths depending on whether we are in Editor or Core context
+            const paths = [
+                `/_content/BlazorVerse.Core/data/mobs/${recipeId}.json`,
+                `/data/mobs/${recipeId}.json`
+            ];
+
+            for (const path of paths) {
+                try {
+                    const response = await fetch(path);
+                    if (response.ok) return await response.json();
+                } catch (e) { }
+            }
+            console.error(`Could not load recipe: ${recipeId}`);
+            return null;
+        } catch (err) {
+            console.error("Error fetching recipe:", err);
+            return null;
+        }
     }
 
     deleteMesh(id) {
@@ -118,6 +152,10 @@ export class EntityManager {
             mesh.material = mat;
             mesh.metadata = { type: "finish" };
             mesh.id = mesh.name;
+        } else if (type === "recipe" && name) {
+            // This case is used by Serializer to restore recipe-based mobs
+            // We'll need to async load the recipe first, or have it passed in.
+            // For now, assume recipes are handled by createFromRecipe.
         }
 
         if (mesh) {
@@ -179,6 +217,81 @@ export class EntityManager {
             }
         }
         return mesh;
+    }
+
+    createFromRecipe(recipe, pos, rot, id) {
+        const scene = this.scene;
+        const root = new BABYLON.Mesh(id || `${recipe.id}_${Date.now()}`, scene);
+        root.position.set(pos.x, pos.y, pos.z);
+        if (rot) root.rotation.set(rot.x, rot.y, rot.z);
+
+        // Calculate total bounds to ensure physics has a shape
+        let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
+        let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
+
+        recipe.visuals.forEach(vis => {
+            let part;
+            const size = vis.size;
+            const vpos = new BABYLON.Vector3(vis.pos[0], vis.pos[1], vis.pos[2]);
+
+            if (vis.type === "box") {
+                part = BABYLON.MeshBuilder.CreateBox(vis.name, {
+                    width: size[0], height: size[1], depth: size[2]
+                }, scene);
+
+                // Update bounds logic
+                const half = new BABYLON.Vector3(size[0] / 2, size[1] / 2, size[2] / 2);
+                min = BABYLON.Vector3.Minimize(min, vpos.subtract(half));
+                max = BABYLON.Vector3.Maximize(max, vpos.add(half));
+            } else if (vis.type === "sphere") {
+                part = BABYLON.MeshBuilder.CreateSphere(vis.name, { diameter: size[0] }, scene);
+
+                const rad = size[0] / 2;
+                const offset = new BABYLON.Vector3(rad, rad, rad);
+                min = BABYLON.Vector3.Minimize(min, vpos.subtract(offset));
+                max = BABYLON.Vector3.Maximize(max, vpos.add(offset));
+            }
+
+            if (part) {
+                part.parent = root;
+                part.position.copyFrom(vpos);
+                const mat = new BABYLON.StandardMaterial(vis.name + "_mat", scene);
+                mat.diffuseColor = new BABYLON.Color3(vis.color.r, vis.color.g, vis.color.b);
+                part.material = mat;
+            }
+        });
+
+        // Apply bounding info to the empty root so PhysicsAggregate works
+        if (min.x !== Infinity) {
+            root.setBoundingInfo(new BABYLON.BoundingInfo(min, max));
+        }
+
+        root.metadata = {
+            type: "recipe",
+            recipeId: recipe.id,
+            stats: JSON.parse(JSON.stringify(recipe.stats)),
+            behavior: JSON.parse(JSON.stringify(recipe.behavior))
+        };
+        root.id = root.name;
+
+        // Physics for the root (uses the bounding info we just set)
+        const aggregate = new BABYLON.PhysicsAggregate(root, BABYLON.PhysicsShapeType.BOX, { mass: 1, friction: 0.5 }, scene);
+        root.physicsAggregate = aggregate;
+
+        // Lock rotation (prevent tipping over / spinning erratically)
+        if (aggregate.body) {
+            aggregate.body.setMassProperties({
+                inertia: new BABYLON.Vector3(0, 0, 0),
+                centerOfMass: BABYLON.Vector3.Zero()
+            });
+        }
+
+        if (this.shadowGen) {
+            this.shadowGen.getShadowMap().renderList.push(root);
+            root.getChildMeshes().forEach(c => this.shadowGen.getShadowMap().renderList.push(c));
+        }
+
+        return root;
     }
 
     animate() {

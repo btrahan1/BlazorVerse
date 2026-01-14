@@ -1,0 +1,93 @@
+{
+    "id": "goblin",
+    "name": "Goblin",
+    "visuals": [
+        {
+            "name": "body",
+            "type": "box",
+            "size": [
+                0.6,
+                1.0,
+                0.4
+            ],
+            "pos": [
+                0,
+                0.5,
+                0
+            ],
+            "color": {
+                "r": 0.2,
+                "g": 0.7,
+                "b": 0.2
+            }
+        },
+        {
+            "name": "head",
+            "type": "sphere",
+            "size": [
+                0.5
+            ],
+            "pos": [
+                0,
+                1.25,
+                0
+            ],
+            "color": {
+                "r": 0.3,
+                "g": 0.8,
+                "b": 0.3
+            }
+        },
+        {
+            "name": "left_arm",
+            "type": "box",
+            "size": [
+                0.2,
+                0.6,
+                0.2
+            ],
+            "pos": [
+                -0.4,
+                0.7,
+                0
+            ],
+            "color": {
+                "r": 0.2,
+                "g": 0.7,
+                "b": 0.2
+            }
+        },
+        {
+            "name": "right_arm",
+            "type": "box",
+            "size": [
+                0.2,
+                0.6,
+                0.2
+            ],
+            "pos": [
+                0.4,
+                0.7,
+                0
+            ],
+            "color": {
+                "r": 0.2,
+                "g": 0.7,
+                "b": 0.2
+            }
+        }
+    ],
+    "stats": {
+        "hp": 50,
+        "maxHp": 50,
+        "speed": 0.04,
+        "atk": 5,
+        "def": 2
+    },
+    "behavior": {
+        "type": "hostile",
+        "aggroRange": 12,
+        "roamRadius": 8,
+        "attackCooldown": 1500
+    }
+}
