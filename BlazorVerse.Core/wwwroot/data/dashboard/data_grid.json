@@ -1,0 +1,32 @@
+{
+    "id": "data_grid",
+    "name": "Business Data Grid",
+    "visuals": [
+        {
+            "name": "main_frame",
+            "type": "box",
+            "size": [
+                2.5,
+                1.8,
+                0.2
+            ],
+            "pos": [
+                0,
+                0,
+                0
+            ],
+            "color": {
+                "r": 0,
+                "g": 1,
+                "b": 0.5
+            }
+        }
+    ],
+    "behavior": {
+        "type": "dashboard",
+        "dashboard": {
+            "type": "grid",
+            "dataFile": "inventory-December"
+        }
+    }
+}

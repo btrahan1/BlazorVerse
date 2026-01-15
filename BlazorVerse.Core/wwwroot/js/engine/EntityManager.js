@@ -11,10 +11,11 @@ export class EntityManager {
         this.CAT_ALL = 0xFF;
     }
 
-    init(scene, shadowGen, combatManager) {
+    init(scene, shadowGen, combatManager, dashboardManager) {
         this.scene = scene;
         this.shadowGen = shadowGen;
         this.combatManager = combatManager;
+        this.dashboardManager = dashboardManager;
         console.log("EntityManager Initialized 📦");
     }
 
@@ -34,7 +35,7 @@ export class EntityManager {
         if (type === "car") y = center.y + 0.6;
         if (type === "walker") y = center.y + 1.25;
 
-        if (type === "goblin" || type === "wolf" || type === "shop_basic" || type === "spawner_basic") {
+        if (type === "goblin" || type === "wolf" || type === "shop_basic" || type === "spawner_basic" || type === "data_grid" || type === "bar_graph") {
             this.spawnRecipe(type, { x, y, z });
             return;
         }
@@ -58,7 +59,9 @@ export class EntityManager {
                 `/_content/BlazorVerse.Core/data/buildings/${recipeId}.json`,
                 `/data/buildings/${recipeId}.json`,
                 `/_content/BlazorVerse.Core/data/recipes/${recipeId}.json`,
-                `/data/recipes/${recipeId}.json`
+                `/data/recipes/${recipeId}.json`,
+                `/_content/BlazorVerse.Core/data/dashboard/${recipeId}.json`,
+                `/data/dashboard/${recipeId}.json`
             ];
 
             for (const path of paths) {
@@ -336,6 +339,17 @@ export class EntityManager {
             root.metadata.style = "Rustic"; // Default style
             root.metadata.inventoryId = "armor"; // Default inventory
             this.applyStyle(root, root.metadata.style);
+        }
+        if (root.metadata.behavior.type === "dashboard") {
+            const dbConfig = root.metadata.behavior.dashboard || {};
+            root.metadata.ownerName = dbConfig.type === "grid" ? "Sales Data Grid" : "Inventory Graph";
+            root.metadata.dashboard = {
+                dataFile: dbConfig.dataFile || "",
+                type: dbConfig.type
+            };
+            if (this.dashboardManager) {
+                this.dashboardManager.buildDashboardVisuals(root);
+            }
         }
         root.id = root.name;
 

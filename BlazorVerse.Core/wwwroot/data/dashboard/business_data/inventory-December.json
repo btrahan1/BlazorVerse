@@ -1,0 +1,27 @@
+[
+    {
+        "Unit ID": "BV-001",
+        "Unit Name": "Server Rack A",
+        "Quantity": 12
+    },
+    {
+        "Unit ID": "BV-002",
+        "Unit Name": "Cooling Unit 4",
+        "Quantity": 5
+    },
+    {
+        "Unit ID": "BV-005",
+        "Unit Name": "Power Hub 2",
+        "Quantity": 8
+    },
+    {
+        "Unit ID": "BV-009",
+        "Unit Name": "Terminal Station",
+        "Quantity": 20
+    },
+    {
+        "Unit ID": "BV-012",
+        "Unit Name": "Backup Gen-X",
+        "Quantity": 3
+    }
+]

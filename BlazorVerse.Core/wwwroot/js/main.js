@@ -6,6 +6,7 @@ import { RaceManager } from './engine/RaceManager.js';
 import { AIManager } from './engine/AIManager.js';
 import { SpawnerManager } from './engine/SpawnerManager.js';
 import { CombatManager } from './engine/CombatManager.js';
+import { DashboardManager } from './engine/DashboardManager.js';
 
 class BlazorVerseEngine {
     constructor() {
@@ -17,6 +18,7 @@ class BlazorVerseEngine {
         this.aiManager = new AIManager();
         this.spawnerManager = new SpawnerManager();
         this.combatManager = new CombatManager();
+        this.dashboardManager = new DashboardManager();
         this.dotNetRef = null;
     }
 
@@ -30,14 +32,10 @@ class BlazorVerseEngine {
 
         // Initialize Subsystems
         await this.sceneManager.init(canvas, (mesh) => this.onMeshSelected(mesh));
-        this.entityManager.init(this.sceneManager.scene, this.sceneManager.shadowGen, this.combatManager);
-        this.driveController.init(this.sceneManager.scene, this.sceneManager.camera, canvas);
-        this.aiManager.init(this.sceneManager.scene, this.dotNetRef, this.combatManager);
-        this.spawnerManager.init(this.sceneManager.scene, this.entityManager);
-        this.combatManager.init(this.sceneManager.scene);
-        this.serializer.init(this.sceneManager, this.entityManager);
-
         this.sceneManager.onSelectCallback = this.onMeshSelected.bind(this);
+        this.dashboardManager.init(this.sceneManager.scene);
+
+        this.entityManager.init(this.sceneManager.scene, this.sceneManager.shadowGen, this.combatManager, this.dashboardManager);
 
         this.raceManager.init((time) => {
             this.dotNetRef.invokeMethodAsync("OnRaceFinished", time);
@@ -91,6 +89,11 @@ class BlazorVerseEngine {
             // Re-apply style if it was updated
             if (newMeta.style) {
                 this.entityManager.applyStyle(mesh, newMeta.style);
+            }
+
+            // Update Dashboard visuals if data changed
+            if (newMeta.dashboard && mesh.metadata.behavior.type === "dashboard") {
+                this.dashboardManager.buildDashboardVisuals(mesh);
             }
         }
     }

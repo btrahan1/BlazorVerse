@@ -1,0 +1,32 @@
+{
+    "id": "bar_graph",
+    "name": "Business Bar Graph",
+    "visuals": [
+        {
+            "name": "graph_base",
+            "type": "box",
+            "size": [
+                2.0,
+                0.2,
+                2.0
+            ],
+            "pos": [
+                0,
+                0,
+                0
+            ],
+            "color": {
+                "r": 0.2,
+                "g": 0.5,
+                "b": 1.0
+            }
+        }
+    ],
+    "behavior": {
+        "type": "dashboard",
+        "dashboard": {
+            "type": "graph",
+            "dataFile": "inventory-December"
+        }
+    }
+}

@@ -3,6 +3,7 @@
 @inject HttpClient Http
 @implements IAsyncDisposable
 @using System.Text.Json.Serialization
+@using BlazorVerse.Core.Models
 
 <PageTitle>BlazorVerse</PageTitle>
 
@@ -84,6 +85,16 @@
                 @foreach (var m in _monsterList)
                 {
                     <option value="@m.Id">@m.Name</option>
+                }
+            </optgroup>
+        }
+
+        @if (_dashboardList.Any())
+        {
+            <optgroup label="DASHBOARD TOOLS">
+                @foreach (var d in _dashboardList)
+                {
+                    <option value="@d.Id">@d.Name</option>
                 }
             </optgroup>
         }
@@ -252,9 +263,9 @@
                             <option value="Classic">Classic 🏰</option>
                         </select>
                         
-                        <div class="hud-label">INVENTORY:</div>
+                        <div class="hud-label">BUSINESS DATA:</div>
                         <select class="hud-input w-100 mb-2" value="@_selection.Metadata.InventoryId" @onchange="OnInventoryChanged">
-                            @foreach (var inv in _inventoryList)
+                            @foreach (var inv in _inventoryDataList)
                             {
                                 <option value="@inv.Id">@inv.Name</option>
                             }
@@ -273,6 +284,20 @@
 
                         <div class="hud-label">FREQUENCY (SEC):</div>
                         <input type="number" class="hud-input w-100 mb-2" @bind="_selection.Metadata.Spawner.Frequency" @onblur="UpdateMetadata" />
+                    }
+
+                    @if (_selection.Metadata.Dashboard != null)
+                    {
+                        <div class="hud-label">DATA SOURCE:</div>
+                        <select class="hud-input w-100 mb-2" value="@_selection.Metadata.Dashboard.DataFile" @onchange="OnDashboardDataChanged">
+                            @foreach (var data in _inventoryDataList)
+                            {
+                                <option value="@data.Id">@data.Name</option>
+                            }
+                        </select>
+                        <div style="font-size: 0.8em; color: #00ff00; opacity: 0.7;">
+                            📊 Live @(_selection.Metadata.Dashboard.Type == "grid" ? "Grid" : "Graph") View
+                        </div>
                     }
                 </div>
             }
@@ -308,6 +333,8 @@
     private List<AssetInfo> _monsterList = new();
     private List<AssetInfo> _buildingList = new();
     private List<AssetInfo> _inventoryList = new();
+    private List<AssetInfo> _dashboardList = new();
+    private List<AssetInfo> _inventoryDataList = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -324,6 +351,8 @@
             _monsterList.Clear();
             _buildingList.Clear();
             _inventoryList.Clear();
+            _dashboardList.Clear();
+            _inventoryDataList.Clear();
 
             foreach (var item in assets)
             {
@@ -333,14 +362,16 @@
                 };
 
                 // Normalize path to forward slashes for cross-platform matching
-                var normalizedPath = item.Path.Replace("\\", "/");
+                var normalizedPath = item.Path.Replace("\\", "/").ToLower();
 
-                if (normalizedPath.StartsWith("monsters/")) _monsterList.Add(info);
-                else if (normalizedPath.StartsWith("buildings/")) _buildingList.Add(info);
-                else if (normalizedPath.StartsWith("inventories/")) _inventoryList.Add(info);
+                if (normalizedPath.Contains("monsters/")) _monsterList.Add(info);
+                else if (normalizedPath.Contains("buildings/")) _buildingList.Add(info);
+                else if (normalizedPath.Contains("inventories/")) _inventoryList.Add(info);
+                else if (normalizedPath.Contains("dashboard/business_data/")) _inventoryDataList.Add(info);
+                else if (normalizedPath.Contains("dashboard/")) _dashboardList.Add(info);
             }
             
-            Console.WriteLine($"📦 Discovery: Found {_monsterList.Count} Monsters, {_buildingList.Count} Buildings");
+            Console.WriteLine($"📦 Discovery: Found {_monsterList.Count} Monsters, {_buildingList.Count} Buildings, {_dashboardList.Count} Dashboard Tools");
             StateHasChanged();
         } catch (Exception ex) {
             Console.WriteLine($"⚠️ Discovery Error: {ex.Message}");
@@ -529,6 +560,15 @@
         }
     }
 
+    private async Task OnDashboardDataChanged(ChangeEventArgs e)
+    {
+        if (_selection?.Metadata?.Dashboard != null)
+        {
+            _selection.Metadata.Dashboard.DataFile = e.Value?.ToString() ?? "";
+            await UpdateMetadata();
+        }
+    }
+
     [JSInvokable("UpdatePlayerHealth")]
     public void UpdatePlayerHealth(double hp)
     {
@@ -579,67 +619,6 @@
         _finalTime = finalTime;
         _isDriving = false; 
         StateHasChanged();
-    }
-
-    public class EngineStats
-    {
-        public double Fps { get; set; }
-        public double X { get; set; }
-        public double Y { get; set; }
-        public double Z { get; set; }
-        public int MeshCount { get; set; }
-        public string CameraType { get; set; } = "";
-        public string LightType { get; set; } = "";
-        public string Resolution { get; set; } = "";
-        public int Vertices { get; set; }
-    }
-
-    public class SelectionInfo
-    {
-        public string Name { get; set; } = "";
-        public string Id { get; set; } = "";
-        public double X { get; set; }
-        public double Y { get; set; }
-        public double Z { get; set; }
-        public EntityMetadata? Metadata { get; set; }
-    }
-
-    public class EntityMetadata
-    {
-        [JsonPropertyName("ownerName")]
-        public string? OwnerName { get; set; }
-        
-        [JsonPropertyName("style")]
-        public string? Style { get; set; }
-
-        [JsonPropertyName("inventoryId")]
-        public string? InventoryId { get; set; }
-        
-        [JsonPropertyName("spawner")]
-        public SpawnerData? Spawner { get; set; }
-    }
-
-    public class SpawnerData
-    {
-        [JsonPropertyName("spawnType")]
-        public string SpawnType { get; set; } = "goblin";
-        
-        [JsonPropertyName("frequency")]
-        public int Frequency { get; set; } = 10;
-    }
-
-    public class AssetInfo
-    {
-        public string Id { get; set; } = "";
-        public string Name { get; set; } = "";
-    }
-
-    public class AssetManifestItem
-    {
-        [JsonPropertyName("id")]
-        public string Id { get; set; } = "";
-        [JsonPropertyName("path")]
-        public string Path { get; set; } = "";
     }
 
     public async ValueTask DisposeAsync()
