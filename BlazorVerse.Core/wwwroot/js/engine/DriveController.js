@@ -37,13 +37,14 @@ export class DriveController {
         this.scene.activeCamera.detachControl();
 
         if (this.followCam) this.followCam.dispose();
-        this.followCam = new BABYLON.FollowCamera("followCam", mesh.position, this.scene);
-        this.followCam.radius = 10;
-        this.followCam.heightOffset = 4;
-        this.followCam.rotationOffset = 180;
-        this.followCam.cameraAcceleration = 0.05;
-        this.followCam.maxCameraSpeed = 10;
-        this.followCam.lockedTarget = mesh;
+
+        // Use ArcRotateCamera for free look-around
+        const cam = new BABYLON.ArcRotateCamera("driveCam", -Math.PI / 2, Math.PI / 3, 10, mesh.position, this.scene);
+        cam.lowerRadiusLimit = 5;
+        cam.upperRadiusLimit = 50;
+        cam.attachControl(this.canvas, true);
+
+        this.followCam = cam;
         this.scene.activeCamera = this.followCam;
 
         window.addEventListener("keydown", this.handleKeyDown);
@@ -79,13 +80,7 @@ export class DriveController {
     }
 
     handleWheel(evt) {
-        if (!this.active || !this.followCam) return;
-        const zoomSensitivity = 0.05;
-        this.followCam.radius += evt.deltaY * zoomSensitivity;
-        this.followCam.radius = Math.max(5, Math.min(100, this.followCam.radius));
-        if (!this.targetBody) {
-            this.targetBody = this.targetMesh.physicsBody || (this.targetMesh.physicsAggregate ? this.targetMesh.physicsAggregate.body : null);
-        }
+        // ArcRotateCamera handles zoom natively when attached to canvas
     }
 
     update() {
@@ -100,21 +95,46 @@ export class DriveController {
         const force = this.power * 0.25;
         const turnForce = isWalker ? 4.0 : 2.0; // Walkers turn twice as fast
 
-        if (this.inputMap["w"]) {
-            const forward = mesh.getDirection(BABYLON.Axis.Z);
-            body.applyImpulse(forward.scale(force), mesh.getAbsolutePosition());
-        }
-        if (this.inputMap["s"]) {
-            const forward = mesh.getDirection(BABYLON.Axis.Z);
-            body.applyImpulse(forward.scale(-force), mesh.getAbsolutePosition());
-        }
+        if (isWalker) {
+            const velocity = body.getLinearVelocity();
+            let newVel = new BABYLON.Vector3(0, velocity.y, 0); // Preserve gravity
 
-        if (this.inputMap["a"]) {
-            body.setAngularVelocity(new BABYLON.Vector3(0, -turnForce, 0));
-        } else if (this.inputMap["d"]) {
-            body.setAngularVelocity(new BABYLON.Vector3(0, turnForce, 0));
+            if (this.inputMap["w"]) {
+                const forward = mesh.getDirection(BABYLON.Axis.Z);
+                newVel.addInPlace(forward.scale(this.power));
+            }
+            if (this.inputMap["s"]) {
+                const forward = mesh.getDirection(BABYLON.Axis.Z);
+                newVel.addInPlace(forward.scale(-this.power));
+            }
+
+            body.setLinearVelocity(newVel);
+
+            if (this.inputMap["a"]) {
+                body.setAngularVelocity(new BABYLON.Vector3(0, -turnForce, 0));
+            } else if (this.inputMap["d"]) {
+                body.setAngularVelocity(new BABYLON.Vector3(0, turnForce, 0));
+            } else {
+                body.setAngularVelocity(new BABYLON.Vector3(0, 0, 0));
+            }
         } else {
-            body.setAngularVelocity(new BABYLON.Vector3(0, 0, 0));
+            // Traditional vehicle (Car) physics using impulses
+            if (this.inputMap["w"]) {
+                const forward = mesh.getDirection(BABYLON.Axis.Z);
+                body.applyImpulse(forward.scale(force), mesh.getAbsolutePosition());
+            }
+            if (this.inputMap["s"]) {
+                const forward = mesh.getDirection(BABYLON.Axis.Z);
+                body.applyImpulse(forward.scale(-force), mesh.getAbsolutePosition());
+            }
+
+            if (this.inputMap["a"]) {
+                body.setAngularVelocity(new BABYLON.Vector3(0, -turnForce, 0));
+            } else if (this.inputMap["d"]) {
+                body.setAngularVelocity(new BABYLON.Vector3(0, turnForce, 0));
+            } else {
+                body.setAngularVelocity(new BABYLON.Vector3(0, 0, 0));
+            }
         }
 
         // --- LATERAL TRACTION (GRIP) ---

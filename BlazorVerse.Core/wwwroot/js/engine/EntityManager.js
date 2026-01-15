@@ -2,24 +2,40 @@ export class EntityManager {
     constructor() {
         this.scene = null;
         this.shadowGen = null;
+        this._spawnAngle = 0;
+
+        // Collision Categories (Bitmasks)
+        this.CAT_STATIC = 1;
+        this.CAT_PLAYER = 2;
+        this.CAT_MOB = 4;
+        this.CAT_ALL = 0xFF;
     }
 
-    init(scene, shadowGen) {
+    init(scene, shadowGen, combatManager) {
         this.scene = scene;
         this.shadowGen = shadowGen;
+        this.combatManager = combatManager;
         console.log("EntityManager Initialized 📦");
     }
 
-    spawnRandom(type) {
-        const x = (Math.random() - 0.5) * 20;
-        const z = (Math.random() - 0.5) * 20;
+    spawnRandom(type, basePos = null) {
+        const center = basePos || new BABYLON.Vector3(0, 0, 0);
 
-        let y = 1.0;
-        if (type === "car") y = 0.6;
-        if (type === "walker") y = 1.25;
+        // Ring spawning: Start at 8 units away to clear the player, up to 15
+        const distance = 8 + Math.random() * 7;
+
+        // Increment angle each time to ensure multiple spawns are spread out
+        this._spawnAngle += 0.8 + (Math.random() * 0.4);
+
+        const x = center.x + Math.cos(this._spawnAngle) * distance;
+        const z = center.z + Math.sin(this._spawnAngle) * distance;
+
+        let y = center.y + 1.0;
+        if (type === "car") y = center.y + 0.6;
+        if (type === "walker") y = center.y + 1.25;
 
         if (type === "goblin" || type === "wolf" || type === "shop_basic" || type === "spawner_basic") {
-            this.spawnRecipe(type, { x, y: 1.0, z });
+            this.spawnRecipe(type, { x, y, z });
             return;
         }
 
@@ -136,7 +152,7 @@ export class EntityManager {
             wheels.forEach(w => w.parent = mesh);
             mesh.name = name || "car_" + Date.now();
             mesh.id = mesh.name;
-            mesh.metadata = { type: "car" }; // Ensure type is preserved for serialization
+            mesh.metadata = { type: "car", stats: { hp: 200, maxHp: 200 } }; // Cars are tougher
         } else if (type === "walker") {
             mesh = BABYLON.MeshBuilder.CreateBox(name || "walker_" + Date.now(), { width: 1, height: 1.5, depth: 0.5 }, scene);
             const head = BABYLON.MeshBuilder.CreateSphere("head", { diameter: 0.7 }, scene);
@@ -145,7 +161,8 @@ export class EntityManager {
             leftLeg.parent = mesh; leftLeg.position.set(-0.3, -1.25, 0); leftLeg.setPivotPoint(new BABYLON.Vector3(0, 0.5, 0));
             const rightLeg = BABYLON.MeshBuilder.CreateBox("rightLeg", { width: 0.3, height: 1, depth: 0.3 }, scene);
             rightLeg.parent = mesh; rightLeg.position.set(0.3, -1.25, 0); rightLeg.setPivotPoint(new BABYLON.Vector3(0, 0.5, 0));
-            mesh.metadata = { type: "walker", legs: [leftLeg, rightLeg] };
+            mesh._legs = [leftLeg, rightLeg];
+            mesh.metadata = { type: "walker", stats: { hp: 100, maxHp: 100 } };
             mesh.id = mesh.name;
         } else if (type === "finish") {
             mesh = BABYLON.MeshBuilder.CreateBox(name || "finish_" + Date.now(), { width: 8, height: 4, depth: 1 }, scene);
@@ -204,13 +221,31 @@ export class EntityManager {
                 let shapeType = BABYLON.PhysicsShapeType.BOX;
                 if (type === "sphere") shapeType = BABYLON.PhysicsShapeType.SPHERE;
                 const isStatic = (type === "wall");
-                mesh.physicsAggregate = new BABYLON.PhysicsAggregate(mesh, shapeType, { mass: isStatic ? 0 : 1, friction: 0.5, restitution: 0.3 }, scene);
+                const isPlayer = (type === "car" || type === "walker");
+
+                mesh.physicsAggregate = new BABYLON.PhysicsAggregate(mesh, shapeType, {
+                    mass: isStatic ? 0 : 1,
+                    friction: 0.5,
+                    restitution: 0.3,
+                    membership: isStatic ? this.CAT_STATIC : (isPlayer ? this.CAT_PLAYER : 0),
+                    mask: this.CAT_ALL
+                }, scene);
+
+                // Removed manual property setting as it's now in constructor
             }
 
             if (shape) {
                 mesh.physicsBody = new BABYLON.PhysicsBody(mesh, BABYLON.PhysicsMotionType.DYNAMIC, false, scene);
                 mesh.physicsBody.shape = shape;
-                mesh.physicsBody.setMassProperties({ mass: 1 });
+                // STABILITY: Lock rotation (inertia = 0) to prevent tipping over
+                mesh.physicsBody.setMassProperties({
+                    mass: 1,
+                    inertia: new BABYLON.Vector3(0, 0, 0)
+                });
+
+                // Vehicles are Players
+                mesh.physicsBody.shape.filterMembershipMask = this.CAT_PLAYER;
+                mesh.physicsBody.shape.filterCollideMask = this.CAT_ALL;
             }
 
             mesh.addBehavior(new BABYLON.PointerDragBehavior({ dragPlaneNormal: new BABYLON.Vector3(0, 1, 0) }));
@@ -218,6 +253,11 @@ export class EntityManager {
             if (this.shadowGen) {
                 this.shadowGen.getShadowMap().renderList.push(mesh);
                 mesh.getChildMeshes().forEach(c => this.shadowGen.getShadowMap().renderList.push(c));
+            }
+
+            // Auto-add health bar if stats exist
+            if (this.combatManager) {
+                this.combatManager.addHealthBar(mesh);
             }
         }
         return mesh;
@@ -277,6 +317,10 @@ export class EntityManager {
             behavior: JSON.parse(JSON.stringify(recipe.behavior || {}))
         };
 
+        if (this.combatManager) {
+            this.combatManager.addHealthBar(root);
+        }
+
         // Initialize Spawner/Building/Other specific data
         root.metadata.ownerName = recipe.id; // Default name is the ID
 
@@ -295,8 +339,14 @@ export class EntityManager {
         }
         root.id = root.name;
 
-        // Physics for the root (uses the bounding info we just set)
-        const aggregate = new BABYLON.PhysicsAggregate(root, BABYLON.PhysicsShapeType.BOX, { mass: 1, friction: 0.5 }, scene);
+        // Physics for the root
+        const isBuilding = recipe.behavior.type === "building" || recipe.behavior.type === "spawner";
+        const aggregate = new BABYLON.PhysicsAggregate(root, BABYLON.PhysicsShapeType.BOX, {
+            mass: isBuilding ? 0 : 1,
+            friction: 0.5,
+            membership: isBuilding ? this.CAT_STATIC : this.CAT_MOB,
+            mask: isBuilding ? this.CAT_ALL : (this.CAT_PLAYER | this.CAT_STATIC)
+        }, scene);
         root.physicsAggregate = aggregate;
 
         // Lock rotation (prevent tipping over / spinning erratically)
@@ -337,7 +387,7 @@ export class EntityManager {
         const time = Date.now() * 0.01; // Faster swing
         this.scene.meshes.forEach(m => {
             if (m.metadata && m.metadata.type === "walker") {
-                const legs = m.metadata.legs;
+                const legs = m._legs;
                 if (!legs || legs.length < 2) return;
 
                 const body = m.physicsBody || (m.physicsAggregate ? m.physicsAggregate.body : null);

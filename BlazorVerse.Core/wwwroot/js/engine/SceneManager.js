@@ -153,7 +153,12 @@ export class SceneManager {
         ground.parent = this.environmentRoot;
 
         // Ground Physics (Static)
-        new BABYLON.PhysicsAggregate(ground, BABYLON.PhysicsShapeType.BOX, { mass: 0, friction: 0.5 }, this.scene);
+        new BABYLON.PhysicsAggregate(ground, BABYLON.PhysicsShapeType.BOX, {
+            mass: 0,
+            friction: 0.5,
+            membership: 1, // CAT_STATIC
+            mask: 0xFF     // CAT_ALL
+        }, this.scene);
     }
 
     setupBoundaries() {

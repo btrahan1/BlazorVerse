@@ -9,9 +9,10 @@ export class AIManager {
         this.enabled = false; // Default to false, let Runner/Editor enable it
     }
 
-    init(scene, dotNetRef) {
+    init(scene, dotNetRef, combatManager) {
         this.scene = scene;
         this.dotNetRef = dotNetRef;
+        this.combatManager = combatManager;
         console.log("AIManager Initialized 🧠");
     }
 
@@ -105,9 +106,17 @@ export class AIManager {
 
         // Move forward using velocity for more consistent character movement
         const currentVel = body.getLinearVelocity();
-        const targetVel = dir.scale(stats.speed * 120);
-        currentVel.x = targetVel.x;
-        currentVel.z = targetVel.z;
+
+        // Melee Stop Logic: Stop pushing if close enough to attack
+        if (dist < 2.2) {
+            currentVel.x = 0;
+            currentVel.z = 0;
+        } else {
+            const targetVel = dir.scale(stats.speed * 120);
+            currentVel.x = targetVel.x;
+            currentVel.z = targetVel.z;
+        }
+
         body.setLinearVelocity(currentVel);
     }
 
@@ -117,10 +126,24 @@ export class AIManager {
 
         if (mob._lastAtk >= (behavior.attackCooldown || 1000)) {
             mob._lastAtk = 0;
-            console.log(`💥 Mob attacks player for ${stats.atk} damage!`);
+
+            // Apply damage to the player
             this.playerHp -= stats.atk;
+            if (this.playerHp < 0) this.playerHp = 0;
+
+            // Sync with physical mesh stats so health bars reflect damage
+            if (this.playerMesh && this.playerMesh.metadata && this.playerMesh.metadata.stats) {
+                this.playerMesh.metadata.stats.hp = this.playerHp;
+            }
+
+            console.log(`💥 Mob attacks player! (HP: ${this.playerHp})`);
+
             if (this.dotNetRef) {
-                this.dotNetRef.invokeMethodAsync("UpdatePlayerHealth", this.playerHp);
+                this.dotNetRef.invokeMethodAsync("UpdatePlayerHealth", Math.floor(this.playerHp));
+
+                if (this.playerHp <= 0) {
+                    this.dotNetRef.invokeMethodAsync("OnPlayerDeath");
+                }
             }
         }
     }
@@ -132,35 +155,10 @@ export class AIManager {
         // Simple proximity attack
         this.mobs.forEach(mob => {
             const dist = BABYLON.Vector3.Distance(this.playerMesh.position, mob.position);
-            if (dist < 3.5) {
-                this.takeDamage(mob, 10); // Hardcoded player damage for now
+            if (dist < 4.0) {
+                this.combatManager.applyDamage(mob, 10);
             }
         });
-    }
-
-    takeDamage(mob, amount) {
-        if (!mob.metadata.stats) return;
-        mob.metadata.stats.hp -= amount;
-        console.log(`🎯 Mob ${mob.name} takes ${amount} damage! HP: ${mob.metadata.stats.hp}`);
-
-        if (mob.metadata.stats.hp <= 0) {
-            this.killMob(mob);
-        } else {
-            // Visual feedback
-            const mesh = mob;
-            const originalColor = mesh.getChildMeshes()[0].material.diffuseColor.clone();
-            mesh.getChildMeshes().forEach(c => c.material.diffuseColor = new BABYLON.Color3(1, 0, 0));
-            setTimeout(() => {
-                mesh.getChildMeshes().forEach(c => c.material.diffuseColor = originalColor);
-            }, 100);
-        }
-    }
-
-    killMob(mob) {
-        console.log(`💀 Mob ${mob.name} killed!`);
-        // Simple scale down and dispose
-        mob.scaling.set(0.1, 0.1, 0.1);
-        setTimeout(() => mob.dispose(), 100);
     }
 
     roam(mob, body, stats, behavior) {

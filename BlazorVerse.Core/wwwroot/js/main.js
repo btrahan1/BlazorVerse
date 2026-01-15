@@ -5,6 +5,7 @@ import { Serializer } from './engine/Serializer.js';
 import { RaceManager } from './engine/RaceManager.js';
 import { AIManager } from './engine/AIManager.js';
 import { SpawnerManager } from './engine/SpawnerManager.js';
+import { CombatManager } from './engine/CombatManager.js';
 
 class BlazorVerseEngine {
     constructor() {
@@ -15,6 +16,7 @@ class BlazorVerseEngine {
         this.raceManager = new RaceManager();
         this.aiManager = new AIManager();
         this.spawnerManager = new SpawnerManager();
+        this.combatManager = new CombatManager();
         this.dotNetRef = null;
     }
 
@@ -28,10 +30,11 @@ class BlazorVerseEngine {
 
         // Initialize Subsystems
         await this.sceneManager.init(canvas, (mesh) => this.onMeshSelected(mesh));
-        this.entityManager.init(this.sceneManager.scene, this.sceneManager.shadowGen);
+        this.entityManager.init(this.sceneManager.scene, this.sceneManager.shadowGen, this.combatManager);
         this.driveController.init(this.sceneManager.scene, this.sceneManager.camera, canvas);
-        this.aiManager.init(this.sceneManager.scene, this.dotNetRef);
+        this.aiManager.init(this.sceneManager.scene, this.dotNetRef, this.combatManager);
         this.spawnerManager.init(this.sceneManager.scene, this.entityManager);
+        this.combatManager.init(this.sceneManager.scene);
         this.serializer.init(this.sceneManager, this.entityManager);
 
         this.sceneManager.onSelectCallback = this.onMeshSelected.bind(this);
@@ -48,6 +51,7 @@ class BlazorVerseEngine {
                 this.entityManager.animate();
                 this.aiManager.update();
                 this.spawnerManager.update();
+                this.combatManager.update();
                 this.raceManager.update();
             }
         });
@@ -57,7 +61,21 @@ class BlazorVerseEngine {
     }
 
     // --- Blazor Interop Methods ---
-    addShape(type) { this.entityManager.spawnRandom(type); }
+    addShape(type) {
+        const basePos = this.getPlayerPosition();
+        this.entityManager.spawnRandom(type, basePos);
+    }
+
+    getPlayerPosition() {
+        if (this.driveController.active && this.driveController.targetMesh) {
+            return this.driveController.targetMesh.position;
+        }
+        if (this.sceneManager.scene.activeCamera === this.sceneManager.fpCamera) {
+            return this.sceneManager.fpCamera.position;
+        }
+        // Fallback to orbit camera target (where user is looking)
+        return this.sceneManager.camera.target;
+    }
     changeColor(id) { this.entityManager.changeColor(id); }
     resetPos(id) { this.entityManager.resetPos(id); }
     deleteMesh(id) { this.entityManager.deleteMesh(id); }
@@ -78,7 +96,8 @@ class BlazorVerseEngine {
     }
     setAIEnabled(enabled) {
         this.aiManager.setEnabled(enabled);
-        this.spawnerManager.setEnabled(enabled); // Tie spawner to AI toggle for now
+        this.spawnerManager.setEnabled(enabled);
+        this.combatManager.setEnabled(enabled);
     }
 
     enterDriveMode(id) {
@@ -124,8 +143,27 @@ class BlazorVerseEngine {
             root = root.parent;
         }
 
+        // If AI is enabled, clicking a mesh might mean an attack!
+        if (this.aiManager.enabled && root.metadata && root.metadata.stats) {
+            this.combatManager.applyDamage(root, 10); // Basic 10 dmg slap
+        }
+
         const pos = root.position;
-        const metaJson = JSON.stringify(root.metadata || {});
+        let metaJson = "{}";
+        try {
+            metaJson = JSON.stringify(root.metadata || {});
+        } catch (e) {
+            console.warn("Circular reference in metadata detected, using safe fallback", e);
+            const safeMeta = {};
+            if (root.metadata) {
+                for (const key in root.metadata) {
+                    if (typeof root.metadata[key] !== 'object' || root.metadata[key] === null) {
+                        safeMeta[key] = root.metadata[key];
+                    }
+                }
+            }
+            metaJson = JSON.stringify(safeMeta);
+        }
 
         console.log(`🔍 Selected: ${root.name} (ID: ${root.id})`);
 

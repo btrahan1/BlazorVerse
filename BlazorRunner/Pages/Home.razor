@@ -201,8 +201,8 @@
         StateHasChanged();
     }
 
-    [JSInvokable]
-    public void SelectObject(string name, string id, double x, double y, double z)
+    [JSInvokable("SelectObject")]
+    public void SelectObject(string name, string id, double x, double y, double z, string metadataJson)
     {
         _selection = new SelectionInfo { Name = name, Id = id, X = x, Y = y, Z = z };
         StateHasChanged();
@@ -212,6 +212,7 @@
     public void UpdateStats(double fps, double x, double y, double z, int meshCount, string cameraType, string lightType, string res, int verts)
     {
         Stats.Fps = fps;
+        Stats.X = x; Stats.Y = y; Stats.Z = z;
         Stats.Resolution = res;
         StateHasChanged();
     }
@@ -232,10 +233,10 @@
         StateHasChanged();
     }
 
-    [JSInvokable]
-    public void UpdatePlayerHealth(int hp)
+    [JSInvokable("UpdatePlayerHealth")]
+    public void UpdatePlayerHealth(double hp)
     {
-        _playerHp = hp;
+        _playerHp = (int)hp;
         if (_playerHp <= 0) {
             _playerHp = 0;
             // Handle death?

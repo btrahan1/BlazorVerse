@@ -12,6 +12,15 @@
 <!-- Top Left: Director Stats -->
 <div class="hud-panel debug-panel">
     <div class="hud-header">🛰️ DIRECTOR STATS</div>
+    <div class="hud-item" style="border-bottom: 2px solid @(_playerHp > 30 ? "#00ff00" : "#ff0000"); margin-bottom: 5px; padding-bottom: 5px;">
+        <span class="hud-label">HEALTH:</span>
+        <span class="hud-value" style="color: @(_playerHp > 30 ? "#00ff00" : "#ff0000"); font-size: 1.2em; font-weight: bold;">@_playerHp</span>
+        
+        <!-- HP Bar -->
+        <div style="width: 100%; height: 8px; background: rgba(255,0,0,0.3); border: 1px solid rgba(0,255,0,0.3); margin-top: 5px; border-radius: 4px; overflow: hidden;">
+            <div style="width: @(_playerHp)%; height: 100%; background: @(_playerHp > 30 ? "#00ff00" : "#ff0000"); transition: width 0.3s ease;"></div>
+        </div>
+    </div>
     <div class="hud-item">
         <span class="hud-label">FPS:</span>
         <span class="hud-value" style="color: @(Stats.Fps < 30 ? "#ff0000" : "#00ff00")">@Stats.Fps.ToString("F0")</span>
@@ -43,62 +52,59 @@
 </div>
 
 <!-- Top Right: Control Center -->
-@if (!_isDriving)
-{
-    <div class="hud-panel control-panel">
-        <div class="hud-header">🎛️ CONTROL CENTER</div>
-        
-        <div class="hud-item">
-            <span class="hud-label">ENTITY:</span>
-        </div>
-        <select class="hud-input" style="width: 100%; margin-bottom: 10px;" @bind="_selectedShape">
-            <optgroup label="BASIC SHAPES">
-                <option value="box">Cube 📦</option>
-                <option value="sphere">Sphere 🔮</option>
-                <option value="wall">Wall 🧱</option>
-                <option value="car">Car 🚗</option>
-                <option value="walker">Walker 🤖</option>
-                <option value="finish">Finish Line 🏁</option>
-            </optgroup>
-            
-            @if (_buildingList.Any())
-            {
-                <optgroup label="BUILDINGS">
-                    @foreach (var b in _buildingList)
-                    {
-                        <option value="@b.Id">@b.Name</option>
-                    }
-                </optgroup>
-            }
-
-            @if (_monsterList.Any())
-            {
-                <optgroup label="MONSTERS">
-                    @foreach (var m in _monsterList)
-                    {
-                        <option value="@m.Id">@m.Name</option>
-                    }
-                </optgroup>
-            }
-        </select>
-        
-        <button class="btn-hud w-100 mb-2" @onclick="AddShape">SPAWN ENTITY</button>
-
-        <div style="border-top: 1px solid rgba(0, 255, 0, 0.2); margin-top: 10px; padding-top: 10px;">
-            <div class="hud-label">CAMERA MODE:</div>
-            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                <button class="btn-hud @(_cameraMode == "orbit" ? "active" : "")" style="flex: 1;" @onclick='() => SetCameraMode("orbit")'>🦅 ORBIT</button>
-                <button class="btn-hud @(_cameraMode == "walk" ? "active" : "")" style="flex: 1;" @onclick='() => SetCameraMode("walk")'>🚶 WALK</button>
-            </div>
-            
-            <button class="btn-hud w-100 @(_aiEnabled ? "active" : "")" 
-                    style="background: @(_aiEnabled ? "rgba(0, 255, 0, 0.2)" : "transparent");"
-                    @onclick="ToggleAI">
-                @(_aiEnabled ? "⏸️ PAUSE AI" : "▶️ START AI")
-            </button>
-        </div>
+<div class="hud-panel control-panel">
+    <div class="hud-header">🎛️ CONTROL CENTER</div>
+    
+    <div class="hud-item">
+        <span class="hud-label">ENTITY:</span>
     </div>
-}
+    <select class="hud-input" style="width: 100%; margin-bottom: 10px;" @bind="_selectedShape">
+        <optgroup label="BASIC SHAPES">
+            <option value="box">Cube 📦</option>
+            <option value="sphere">Sphere 🔮</option>
+            <option value="wall">Wall 🧱</option>
+            <option value="car">Car 🚗</option>
+            <option value="walker">Walker 🤖</option>
+            <option value="finish">Finish Line 🏁</option>
+        </optgroup>
+        
+        @if (_buildingList.Any())
+        {
+            <optgroup label="BUILDINGS">
+                @foreach (var b in _buildingList)
+                {
+                    <option value="@b.Id">@b.Name</option>
+                }
+            </optgroup>
+        }
+
+        @if (_monsterList.Any())
+        {
+            <optgroup label="MONSTERS">
+                @foreach (var m in _monsterList)
+                {
+                    <option value="@m.Id">@m.Name</option>
+                }
+            </optgroup>
+        }
+    </select>
+    
+    <button class="btn-hud w-100 mb-2" @onclick="AddShape">SPAWN ENTITY</button>
+
+    <div style="border-top: 1px solid rgba(0, 255, 0, 0.2); margin-top: 10px; padding-top: 10px;">
+        <div class="hud-label">CAMERA MODE:</div>
+        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+            <button class="btn-hud @(_cameraMode == "orbit" ? "active" : "")" style="flex: 1;" @onclick='() => SetCameraMode("orbit")'>🦅 ORBIT</button>
+            <button class="btn-hud @(_cameraMode == "walk" ? "active" : "")" style="flex: 1;" @onclick='() => SetCameraMode("walk")'>🚶 WALK</button>
+        </div>
+        
+        <button class="btn-hud w-100 @(_aiEnabled ? "active" : "")" 
+                style="background: @(_aiEnabled ? "rgba(0, 255, 0, 0.2)" : "transparent");"
+                @onclick="ToggleAI">
+            @(_aiEnabled ? "⏸️ PAUSE AI" : "▶️ START AI")
+        </button>
+    </div>
+</div>
 
 <!-- Drive Mode UI -->
 @if (_isDriving)
@@ -131,8 +137,8 @@
 
 @if (_raceFinished)
 {
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 200;">
-         <div style="background: rgba(0,0,0,0.9); padding: 50px; border: 4px solid #ffff00; border-radius: 15px;">
+    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); z-index: 200;">
+         <div style="background: rgba(0,0,0,0.9); padding: 50px; border: 4px solid #ffff00; border-radius: 15px; text-align: center;">
             <h1 style="color: #ffff00; font-size: 3em;">🏆 FINISHED!</h1>
             <h2 style="color: white;">TIME: @_finalTime.ToString("F2")s</h2>
             <button class="btn-hud mt-4" style="font-size: 1.5em; padding: 10px 30px;" @onclick="() => { _raceFinished = false; }">OK</button>
@@ -140,13 +146,21 @@
     </div>
 }
 
-<!-- World Editor Toggle (Top Right, below Control Center) -->
-@if (!_isDriving)
+@if (_playerHp <= 0)
 {
-    <button class="btn-hud" style="position: absolute; bottom: 20px; right: 20px; width: 220px;" @onclick="() => _showWorldEditor = !_showWorldEditor">
-        🌍 WORLD EDITOR
-    </button>
+    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(100,0,0,0.6); z-index: 300; backdrop-filter: blur(5px);">
+         <div style="background: rgba(20,0,0,0.9); padding: 60px; border: 5px solid #ff0000; border-radius: 20px; text-align: center; box-shadow: 0 0 50px rgba(255,0,0,0.5);">
+            <h1 style="color: #ff0000; font-size: 5em; font-family: 'Courier New', Courier, monospace; letter-spacing: 10px; text-shadow: 0 0 20px #000;">YOU DIED</h1>
+            <p style="color: #ccc; font-size: 1.2em; margin: 20px 0;">The scavengers have already claimed your scrap.</p>
+            <button class="btn-hud mt-4" style="background: #ff0000; color: white; border-color: #ff0000; font-size: 2em; padding: 15px 40px; font-weight: bold;" @onclick="Respawn">RESPAWN</button>
+         </div>
+    </div>
 }
+
+<!-- World Editor Toggle (Top Right, below Control Center) -->
+<button class="btn-hud" style="position: absolute; bottom: 20px; right: 20px; width: 220px;" @onclick="() => _showWorldEditor = !_showWorldEditor">
+    @(_showWorldEditor ? "❌ CLOSE EDITOR" : "🛠️ WORLD EDITOR")
+</button>
 
 <!-- World Editor Panel -->
 @if (_showWorldEditor && !_isDriving)
@@ -289,6 +303,7 @@
     private bool _fogEnabled = true;
     private string _cameraMode = "orbit";
     private bool _aiEnabled = false;
+    private int _playerHp = 100;
 
     private List<AssetInfo> _monsterList = new();
     private List<AssetInfo> _buildingList = new();
@@ -472,7 +487,7 @@
 
     private void ClearSelection() => _selection = null;
 
-    [JSInvokable]
+    [JSInvokable("SelectObject")]
     public void SelectObject(string name, string id, double x, double y, double z, string metadataJson)
     {
         var meta = System.Text.Json.JsonSerializer.Deserialize<EntityMetadata>(metadataJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -512,6 +527,29 @@
             _selection.Metadata.InventoryId = e.Value?.ToString() ?? "armor";
             await UpdateMetadata();
         }
+    }
+
+    [JSInvokable("UpdatePlayerHealth")]
+    public void UpdatePlayerHealth(double hp)
+    {
+        _playerHp = (int)hp;
+        StateHasChanged();
+    }
+
+    [JSInvokable("OnPlayerDeath")]
+    public void OnPlayerDeath()
+    {
+        // Force state update to show death screen
+        _playerHp = 0;
+        StateHasChanged();
+    }
+
+    private async Task Respawn()
+    {
+        _playerHp = 100;
+        await JSRuntime.InvokeVoidAsync("BabylonInterop.resetPos", _selection?.Id);
+        await JSRuntime.InvokeVoidAsync("BabylonInterop.setAIEnabled", false); // Give player a breather
+        StateHasChanged();
     }
 
     [JSInvokable]
