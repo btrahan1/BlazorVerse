@@ -1,6 +1,8 @@
 @page "/"
 @inject IJSRuntime JSRuntime
+@inject HttpClient Http
 @implements IAsyncDisposable
+@using System.Text.Json.Serialization
 
 <PageTitle>BlazorVerse</PageTitle>
 
@@ -50,14 +52,34 @@
             <span class="hud-label">ENTITY:</span>
         </div>
         <select class="hud-input" style="width: 100%; margin-bottom: 10px;" @bind="_selectedShape">
-            <option value="box">Cube 📦</option>
-            <option value="sphere">Sphere 🔮</option>
-            <option value="wall">Wall 🧱</option>
-            <option value="car">Car 🚗</option>
-            <option value="walker">Walker 🤖</option>
-            <option value="goblin">Goblin 👺</option>
-            <option value="wolf">Wolf 🐺</option>
-            <option value="finish">Finish Line 🏁</option>
+            <optgroup label="BASIC SHAPES">
+                <option value="box">Cube 📦</option>
+                <option value="sphere">Sphere 🔮</option>
+                <option value="wall">Wall 🧱</option>
+                <option value="car">Car 🚗</option>
+                <option value="walker">Walker 🤖</option>
+                <option value="finish">Finish Line 🏁</option>
+            </optgroup>
+            
+            @if (_buildingList.Any())
+            {
+                <optgroup label="BUILDINGS">
+                    @foreach (var b in _buildingList)
+                    {
+                        <option value="@b.Id">@b.Name</option>
+                    }
+                </optgroup>
+            }
+
+            @if (_monsterList.Any())
+            {
+                <optgroup label="MONSTERS">
+                    @foreach (var m in _monsterList)
+                    {
+                        <option value="@m.Id">@m.Name</option>
+                    }
+                </optgroup>
+            }
         </select>
         
         <button class="btn-hud w-100 mb-2" @onclick="AddShape">SPAWN ENTITY</button>
@@ -198,16 +220,59 @@
             <span class="hud-value">X:@_selection.X.ToString("F2") Y:@_selection.Y.ToString("F2") Z:@_selection.Z.ToString("F2")</span>
         </div>
         
-        <div class="mt-3">
-            <button class="btn-hud" @onclick="ChangeColor">🎨 COLOR</button>
-            <button class="btn-hud" @onclick="ResetPos">📍 RESET</button>
-            <button class="btn-hud btn-hud-danger" @onclick="Delete">🗑️ DELETE</button>
-
-            @if (_selection.Name.StartsWith("car") || _selection.Name.StartsWith("walker"))
+            @if (_selection.Metadata != null)
             {
-               <button class="btn-hud" style="background: linear-gradient(45deg, #ff9900, #ff5500); margin-top: 10px;" @onclick="Drive">🏎️ DRIVE</button>
+                <div class="mt-2" style="border-top: 1px solid rgba(0,255,0,0.1); padding-top: 10px;">
+                    @if (!string.IsNullOrEmpty(_selection.Metadata.OwnerName))
+                    {
+                        <div class="hud-label">@(_selection.Metadata.Spawner != null ? "SPAWNER NAME:" : "BUILDING NAME:")</div>
+                        <input class="hud-input w-100 mb-2" @bind="_selection.Metadata.OwnerName" @onblur="UpdateMetadata" />
+                    }
+
+                    @if (_selection.Metadata.Style != null)
+                    {
+                        <div class="hud-label">STYLE:</div>
+                        <select class="hud-input w-100 mb-2" value="@_selection.Metadata.Style" @onchange="OnStyleChanged">
+                            <option value="Rustic">Rustic 🪵</option>
+                            <option value="Modern">Modern 🏢</option>
+                            <option value="Classic">Classic 🏰</option>
+                        </select>
+                        
+                        <div class="hud-label">INVENTORY:</div>
+                        <select class="hud-input w-100 mb-2" value="@_selection.Metadata.InventoryId" @onchange="OnInventoryChanged">
+                            @foreach (var inv in _inventoryList)
+                            {
+                                <option value="@inv.Id">@inv.Name</option>
+                            }
+                        </select>
+                    }
+
+                    @if (_selection.Metadata.Spawner != null)
+                    {
+                        <div class="hud-label">SPAWN TYPE:</div>
+                        <select class="hud-input w-100 mb-2" value="@_selection.Metadata.Spawner.SpawnType" @onchange="OnSpawnTypeChanged">
+                            @foreach (var m in _monsterList)
+                            {
+                                <option value="@m.Id">@m.Name</option>
+                            }
+                        </select>
+
+                        <div class="hud-label">FREQUENCY (SEC):</div>
+                        <input type="number" class="hud-input w-100 mb-2" @bind="_selection.Metadata.Spawner.Frequency" @onblur="UpdateMetadata" />
+                    }
+                </div>
             }
-        </div>
+
+            <div class="mt-3">
+                <button class="btn-hud" @onclick="ChangeColor">🎨 COLOR</button>
+                <button class="btn-hud" @onclick="ResetPos">📍 RESET</button>
+                <button class="btn-hud btn-hud-danger" @onclick="Delete">🗑️ DELETE</button>
+
+                @if (_selection.Name.StartsWith("car") || _selection.Name.StartsWith("walker"))
+                {
+                    <button class="btn-hud" style="background: linear-gradient(45deg, #ff9900, #ff5500); margin-top: 10px;" @onclick="Drive">🏎️ DRIVE</button>
+                }
+            </div>
     </div>
 }
 
@@ -224,6 +289,62 @@
     private bool _fogEnabled = true;
     private string _cameraMode = "orbit";
     private bool _aiEnabled = false;
+
+    private List<AssetInfo> _monsterList = new();
+    private List<AssetInfo> _buildingList = new();
+    private List<AssetInfo> _inventoryList = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ScanAssets();
+    }
+
+    private async Task ScanAssets()
+    {
+        try {
+            // In Blazor WASM, assets from a referenced project (RCL) are served under _content/ProjectName/
+            var assets = await Http.GetFromJsonAsync<List<AssetManifestItem>>("_content/BlazorVerse.Core/data/assets.json");
+            if (assets == null) return;
+
+            _monsterList.Clear();
+            _buildingList.Clear();
+            _inventoryList.Clear();
+
+            foreach (var item in assets)
+            {
+                var info = new AssetInfo { 
+                    Id = item.Id, 
+                    Name = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(item.Id.Replace("_", " ")) 
+                };
+
+                // Normalize path to forward slashes for cross-platform matching
+                var normalizedPath = item.Path.Replace("\\", "/");
+
+                if (normalizedPath.StartsWith("monsters/")) _monsterList.Add(info);
+                else if (normalizedPath.StartsWith("buildings/")) _buildingList.Add(info);
+                else if (normalizedPath.StartsWith("inventories/")) _inventoryList.Add(info);
+            }
+            
+            Console.WriteLine($"📦 Discovery: Found {_monsterList.Count} Monsters, {_buildingList.Count} Buildings");
+            StateHasChanged();
+        } catch (Exception ex) {
+            Console.WriteLine($"⚠️ Discovery Error: {ex.Message}");
+        }
+    }
+
+    private List<AssetInfo> GetAssetsIn(string path)
+    {
+        var list = new List<AssetInfo>();
+        if (!System.IO.Directory.Exists(path)) return list;
+
+        foreach (var file in System.IO.Directory.GetFiles(path, "*.json"))
+        {
+            var id = System.IO.Path.GetFileNameWithoutExtension(file);
+            var name = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(id.Replace("_", " "));
+            list.Add(new AssetInfo { Id = id, Name = name });
+        }
+        return list;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -352,10 +473,45 @@
     private void ClearSelection() => _selection = null;
 
     [JSInvokable]
-    public void SelectObject(string name, string id, double x, double y, double z)
+    public void SelectObject(string name, string id, double x, double y, double z, string metadataJson)
     {
-        _selection = new SelectionInfo { Name = name, Id = id, X = x, Y = y, Z = z };
+        var meta = System.Text.Json.JsonSerializer.Deserialize<EntityMetadata>(metadataJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        _selection = new SelectionInfo { Name = name, Id = id, X = x, Y = y, Z = z, Metadata = meta };
         StateHasChanged();
+    }
+
+    private async Task UpdateMetadata()
+    {
+        if (_selection == null || _selection.Metadata == null) return;
+        var json = System.Text.Json.JsonSerializer.Serialize(_selection.Metadata);
+        await JSRuntime.InvokeVoidAsync("BabylonInterop.updateMetadata", _selection.Id, json);
+    }
+
+    private async Task OnSpawnTypeChanged(ChangeEventArgs e)
+    {
+        if (_selection?.Metadata?.Spawner != null)
+        {
+            _selection.Metadata.Spawner.SpawnType = e.Value?.ToString() ?? "goblin";
+            await UpdateMetadata();
+        }
+    }
+
+    private async Task OnStyleChanged(ChangeEventArgs e)
+    {
+        if (_selection?.Metadata != null)
+        {
+            _selection.Metadata.Style = e.Value?.ToString() ?? "Rustic";
+            await UpdateMetadata();
+        }
+    }
+
+    private async Task OnInventoryChanged(ChangeEventArgs e)
+    {
+        if (_selection?.Metadata != null)
+        {
+            _selection.Metadata.InventoryId = e.Value?.ToString() ?? "armor";
+            await UpdateMetadata();
+        }
     }
 
     [JSInvokable]
@@ -407,6 +563,45 @@
         public double X { get; set; }
         public double Y { get; set; }
         public double Z { get; set; }
+        public EntityMetadata? Metadata { get; set; }
+    }
+
+    public class EntityMetadata
+    {
+        [JsonPropertyName("ownerName")]
+        public string? OwnerName { get; set; }
+        
+        [JsonPropertyName("style")]
+        public string? Style { get; set; }
+
+        [JsonPropertyName("inventoryId")]
+        public string? InventoryId { get; set; }
+        
+        [JsonPropertyName("spawner")]
+        public SpawnerData? Spawner { get; set; }
+    }
+
+    public class SpawnerData
+    {
+        [JsonPropertyName("spawnType")]
+        public string SpawnType { get; set; } = "goblin";
+        
+        [JsonPropertyName("frequency")]
+        public int Frequency { get; set; } = 10;
+    }
+
+    public class AssetInfo
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+    }
+
+    public class AssetManifestItem
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = "";
+        [JsonPropertyName("path")]
+        public string Path { get; set; } = "";
     }
 
     public async ValueTask DisposeAsync()

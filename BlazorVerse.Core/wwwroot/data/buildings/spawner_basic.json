@@ -1,0 +1,64 @@
+{
+    "id": "spawner_basic",
+    "visuals": [
+        {
+            "name": "base",
+            "type": "box",
+            "size": [
+                2,
+                0.5,
+                2
+            ],
+            "pos": [
+                0,
+                0,
+                0
+            ],
+            "color": {
+                "r": 0.3,
+                "g": 0.3,
+                "b": 0.5
+            }
+        },
+        {
+            "name": "pillar",
+            "type": "box",
+            "size": [
+                1,
+                2,
+                1
+            ],
+            "pos": [
+                0,
+                1.25,
+                0
+            ],
+            "color": {
+                "r": 0.4,
+                "g": 0.4,
+                "b": 0.6
+            }
+        },
+        {
+            "name": "orb",
+            "type": "sphere",
+            "size": [
+                1.2
+            ],
+            "pos": [
+                0,
+                2.5,
+                0
+            ],
+            "color": {
+                "r": 0,
+                "g": 0.8,
+                "b": 1
+            }
+        }
+    ],
+    "stats": {},
+    "behavior": {
+        "type": "spawner"
+    }
+}

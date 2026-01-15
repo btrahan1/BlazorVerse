@@ -24,4 +24,7 @@
     <ProjectReference Include="BlazorVerse.Core\BlazorVerse.Core.csproj" />
   </ItemGroup>
 
+  <Target Name="GenerateAssetManifest" AfterTargets="Build">
+    <Exec Command="pwsh -Command &quot;Get-ChildItem -Path BlazorVerse.Core/wwwroot/data -Recurse -File -Filter *.json | ForEach-Object { [PSCustomObject]@{ id = $_.BaseName; path = ($_.FullName -replace '.*wwwroot[\\/]data[\\/]', '').Replace('\\', '/') } } | ConvertTo-Json -Compress&quot; > BlazorVerse.Core/wwwroot/data/assets.json" />
+  </Target>
 </Project>

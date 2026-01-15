@@ -1,0 +1,66 @@
+{
+    "id": "shop_basic",
+    "visuals": [
+        {
+            "name": "foundation",
+            "type": "box",
+            "size": [
+                5,
+                0.5,
+                5
+            ],
+            "pos": [
+                0,
+                0,
+                0
+            ],
+            "color": {
+                "r": 0.4,
+                "g": 0.4,
+                "b": 0.4
+            }
+        },
+        {
+            "name": "main_body",
+            "type": "box",
+            "size": [
+                4,
+                4,
+                4
+            ],
+            "pos": [
+                0,
+                2,
+                0
+            ],
+            "color": {
+                "r": 0.8,
+                "g": 0.7,
+                "b": 0.5
+            }
+        },
+        {
+            "name": "roof",
+            "type": "box",
+            "size": [
+                5,
+                1,
+                5
+            ],
+            "pos": [
+                0,
+                4.5,
+                0
+            ],
+            "color": {
+                "r": 0.5,
+                "g": 0.2,
+                "b": 0.1
+            }
+        }
+    ],
+    "stats": {},
+    "behavior": {
+        "type": "building"
+    }
+}

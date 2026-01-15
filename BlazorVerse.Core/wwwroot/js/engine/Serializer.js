@@ -36,6 +36,11 @@ export class Serializer {
                     entity.recipeId = m.metadata.recipeId;
                 }
 
+                // Add Spawner/Building metadata
+                if (m.metadata.spawner) entity.spawner = m.metadata.spawner;
+                if (m.metadata.ownerName) entity.ownerName = m.metadata.ownerName;
+                if (m.metadata.inventoryId) entity.inventoryId = m.metadata.inventoryId;
+
                 entities.push(entity);
             }
         });
@@ -62,10 +67,17 @@ export class Serializer {
         // 3. Restore Entities
         if (data.entities) {
             for (const ent of data.entities) {
+                let mesh;
                 if (ent.type === "recipe" && ent.recipeId) {
-                    await this.entityManager.spawnRecipe(ent.recipeId, ent.pos, ent.rot, ent.name);
+                    mesh = await this.entityManager.spawnRecipe(ent.recipeId, ent.pos, ent.rot, ent.name);
                 } else {
-                    this.entityManager.createEntity(ent.type, ent.pos, ent.rot, ent.color, ent.name);
+                    mesh = this.entityManager.createEntity(ent.type, ent.pos, ent.rot, ent.color, ent.name);
+                }
+
+                if (mesh && mesh.metadata) {
+                    if (ent.spawner) mesh.metadata.spawner = ent.spawner;
+                    if (ent.ownerName) mesh.metadata.ownerName = ent.ownerName;
+                    if (ent.inventoryId) mesh.metadata.inventoryId = ent.inventoryId;
                 }
             }
         }

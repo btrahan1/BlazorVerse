@@ -4,6 +4,7 @@ import { DriveController } from './engine/DriveController.js';
 import { Serializer } from './engine/Serializer.js';
 import { RaceManager } from './engine/RaceManager.js';
 import { AIManager } from './engine/AIManager.js';
+import { SpawnerManager } from './engine/SpawnerManager.js';
 
 class BlazorVerseEngine {
     constructor() {
@@ -13,6 +14,7 @@ class BlazorVerseEngine {
         this.serializer = new Serializer();
         this.raceManager = new RaceManager();
         this.aiManager = new AIManager();
+        this.spawnerManager = new SpawnerManager();
         this.dotNetRef = null;
     }
 
@@ -29,7 +31,10 @@ class BlazorVerseEngine {
         this.entityManager.init(this.sceneManager.scene, this.sceneManager.shadowGen);
         this.driveController.init(this.sceneManager.scene, this.sceneManager.camera, canvas);
         this.aiManager.init(this.sceneManager.scene, this.dotNetRef);
+        this.spawnerManager.init(this.sceneManager.scene, this.entityManager);
         this.serializer.init(this.sceneManager, this.entityManager);
+
+        this.sceneManager.onSelectCallback = this.onMeshSelected.bind(this);
 
         this.raceManager.init((time) => {
             this.dotNetRef.invokeMethodAsync("OnRaceFinished", time);
@@ -42,6 +47,7 @@ class BlazorVerseEngine {
                 this.driveController.update();
                 this.entityManager.animate();
                 this.aiManager.update();
+                this.spawnerManager.update();
                 this.raceManager.update();
             }
         });
@@ -58,7 +64,22 @@ class BlazorVerseEngine {
 
     setVehiclePower(value) { this.driveController.setPower(value); }
     playerAttack() { this.aiManager.playerAttack(); }
-    setAIEnabled(enabled) { this.aiManager.setEnabled(enabled); }
+    updateMetadata(id, json) {
+        const mesh = this.sceneManager.scene.getMeshByID(id);
+        if (mesh) {
+            const newMeta = JSON.parse(json);
+            mesh.metadata = { ...mesh.metadata, ...newMeta };
+
+            // Re-apply style if it was updated
+            if (newMeta.style) {
+                this.entityManager.applyStyle(mesh, newMeta.style);
+            }
+        }
+    }
+    setAIEnabled(enabled) {
+        this.aiManager.setEnabled(enabled);
+        this.spawnerManager.setEnabled(enabled); // Tie spawner to AI toggle for now
+    }
 
     enterDriveMode(id) {
         const mesh = this.sceneManager.scene.getMeshByID(id);
@@ -95,11 +116,24 @@ class BlazorVerseEngine {
 
     // --- Internal Callbacks ---
     onMeshSelected(mesh) {
-        if (this.dotNetRef) {
-            const pos = mesh.position;
-            this.dotNetRef.invokeMethodAsync("SelectObject", mesh.name, mesh.id, pos.x, pos.y, pos.z)
-                .catch(err => console.error(err));
+        if (!this.dotNetRef) return;
+
+        // Bubble up to find the "logical" entity root (one with metadata)
+        let root = mesh;
+        while (root.parent && (!root.metadata || root.metadata.type === undefined)) {
+            root = root.parent;
         }
+
+        const pos = root.position;
+        const metaJson = JSON.stringify(root.metadata || {});
+
+        console.log(`🔍 Selected: ${root.name} (ID: ${root.id})`);
+
+        this.dotNetRef.invokeMethodAsync("SelectObject",
+            root.name, root.id,
+            pos.x, pos.y, pos.z,
+            metaJson
+        ).catch(err => console.error(err));
     }
 
     startStatsLoop() {

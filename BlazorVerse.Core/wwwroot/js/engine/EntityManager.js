@@ -18,7 +18,7 @@ export class EntityManager {
         if (type === "car") y = 0.6;
         if (type === "walker") y = 1.25;
 
-        if (type === "goblin" || type === "wolf") {
+        if (type === "goblin" || type === "wolf" || type === "shop_basic" || type === "spawner_basic") {
             this.spawnRecipe(type, { x, y: 1.0, z });
             return;
         }
@@ -37,8 +37,12 @@ export class EntityManager {
         try {
             // Try different paths depending on whether we are in Editor or Core context
             const paths = [
-                `/_content/BlazorVerse.Core/data/mobs/${recipeId}.json`,
-                `/data/mobs/${recipeId}.json`
+                `/_content/BlazorVerse.Core/data/monsters/${recipeId}.json`,
+                `/data/monsters/${recipeId}.json`,
+                `/_content/BlazorVerse.Core/data/buildings/${recipeId}.json`,
+                `/data/buildings/${recipeId}.json`,
+                `/_content/BlazorVerse.Core/data/recipes/${recipeId}.json`,
+                `/data/recipes/${recipeId}.json`
             ];
 
             for (const path of paths) {
@@ -269,9 +273,26 @@ export class EntityManager {
         root.metadata = {
             type: "recipe",
             recipeId: recipe.id,
-            stats: JSON.parse(JSON.stringify(recipe.stats)),
-            behavior: JSON.parse(JSON.stringify(recipe.behavior))
+            stats: JSON.parse(JSON.stringify(recipe.stats || {})),
+            behavior: JSON.parse(JSON.stringify(recipe.behavior || {}))
         };
+
+        // Initialize Spawner/Building/Other specific data
+        root.metadata.ownerName = recipe.id; // Default name is the ID
+
+        if (root.metadata.behavior.type === "spawner") {
+            root.metadata.ownerName = "New Spawner";
+            root.metadata.spawner = {
+                spawnType: "goblin", // Default
+                frequency: 10 // Seconds
+            };
+        }
+        if (root.metadata.behavior.type === "building") {
+            root.metadata.ownerName = "Ye Ole Shop";
+            root.metadata.style = "Rustic"; // Default style
+            root.metadata.inventoryId = "armor"; // Default inventory
+            this.applyStyle(root, root.metadata.style);
+        }
         root.id = root.name;
 
         // Physics for the root (uses the bounding info we just set)
@@ -292,6 +313,24 @@ export class EntityManager {
         }
 
         return root;
+    }
+
+    applyStyle(mesh, style) {
+        if (!mesh || !style) return;
+        console.log(`🎨 Applying style: ${style} to ${mesh.name}`);
+
+        const children = mesh.getChildMeshes();
+        children.forEach(c => {
+            if (!c.material) return;
+
+            if (style === "Rustic") {
+                c.material.diffuseColor = new BABYLON.Color3(0.5, 0.3, 0.1); // Brownish
+            } else if (style === "Modern") {
+                c.material.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.25); // Sleek Dark Gray
+            } else if (style === "Classic") {
+                c.material.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.7); // Stone/Creme
+            }
+        });
     }
 
     animate() {

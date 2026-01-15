@@ -1,0 +1,21 @@
+{
+    "id": "armor",
+    "items": [
+        {
+            "name": "Leather Vest",
+            "price": 50,
+            "ac": 2
+        },
+        {
+            "name": "Iron Plate",
+            "price": 250,
+            "ac": 6
+        },
+        {
+            "name": "Magic Shroud",
+            "price": 1000,
+            "ac": 4,
+            "bonus": "Mana Regen"
+        }
+    ]
+}

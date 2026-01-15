@@ -1,0 +1,21 @@
+{
+    "id": "weapons",
+    "items": [
+        {
+            "name": "Rusty Dagger",
+            "price": 10,
+            "dmg": 2
+        },
+        {
+            "name": "Steel Broadsword",
+            "price": 150,
+            "dmg": 8
+        },
+        {
+            "name": "Flaming Scepter",
+            "price": 2000,
+            "dmg": 12,
+            "effect": "Fire"
+        }
+    ]
+}

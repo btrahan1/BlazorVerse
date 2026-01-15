@@ -1,0 +1,1 @@
+[{"id":"assets","path":"assets.json"},{"id":"shop_basic","path":"buildings\\shop_basic.json"},{"id":"spawner_basic","path":"buildings\\spawner_basic.json"},{"id":"armor","path":"inventories\\armor.json"},{"id":"weapons","path":"inventories\\weapons.json"},{"id":"goblin","path":"monsters\\goblin.json"},{"id":"wolf","path":"monsters\\wolf.json"}]
