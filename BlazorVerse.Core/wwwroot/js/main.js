@@ -34,8 +34,17 @@ class BlazorVerseEngine {
         await this.sceneManager.init(canvas, (mesh) => this.onMeshSelected(mesh));
         this.sceneManager.onSelectCallback = this.onMeshSelected.bind(this);
         this.dashboardManager.init(this.sceneManager.scene);
+        this.combatManager.init(this.sceneManager.scene);
+        this.aiManager.init(this.sceneManager.scene, this.dotNetRef, this.combatManager);
+        this.spawnerManager.init(this.sceneManager.scene, this.entityManager);
 
         this.entityManager.init(this.sceneManager.scene, this.sceneManager.shadowGen, this.combatManager, this.dashboardManager);
+
+        // Load asset manifest for smart resolution
+        fetch('_content/BlazorVerse.Core/data/assets.json')
+            .then(r => r.ok ? r.json() : fetch('/data/assets.json').then(r2 => r2.json()))
+            .then(assets => this.entityManager.setManifest(assets))
+            .catch(err => console.warn("Could not load asset manifest, falling back to guessing logic.", err));
 
         this.raceManager.init((time) => {
             this.dotNetRef.invokeMethodAsync("OnRaceFinished", time);

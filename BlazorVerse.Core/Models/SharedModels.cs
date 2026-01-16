@@ -71,5 +71,8 @@ namespace BlazorVerse.Core.Models
         
         [JsonPropertyName("frequency")]
         public int Frequency { get; set; } = 10;
+
+        [JsonPropertyName("maxSpawned")]
+        public int MaxSpawned { get; set; } = 10;
     }
 }

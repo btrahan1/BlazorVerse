@@ -16,7 +16,20 @@ export class EntityManager {
         this.shadowGen = shadowGen;
         this.combatManager = combatManager;
         this.dashboardManager = dashboardManager;
+        this.assetManifest = new Map();
         console.log("EntityManager Initialized 📦");
+    }
+
+    setManifest(manifestItems) {
+        if (!manifestItems) return;
+        this.assetManifest.clear();
+        manifestItems.forEach(item => {
+            if (item.id && item.path) {
+                // Normalize path to forward slashes
+                this.assetManifest.set(item.id, item.path.replace(/\\/g, '/'));
+            }
+        });
+        console.log(`📑 Asset manifest loaded: ${this.assetManifest.size} items`);
     }
 
     spawnRandom(type, basePos = null) {
@@ -34,8 +47,13 @@ export class EntityManager {
         let y = center.y + 1.0;
         if (type === "car") y = center.y + 0.6;
         if (type === "walker") y = center.y + 1.25;
+        // Buildings and dashboards should be flush with ground
+        if (type.includes("shop") || type.includes("spawner") || type.includes("grid") || type.includes("graph")) {
+            y = center.y;
+        }
 
-        if (type === "goblin" || type === "wolf" || type === "shop_basic" || type === "spawner_basic" || type === "data_grid" || type === "bar_graph") {
+        if (type === "goblin" || type === "wolf" || type === "shop_basic" || type === "spawner_basic" || type === "worker_spawner" ||
+            type === "data_grid" || type === "bar_graph" || type === "human_worker" || type === "grunt_worker") {
             this.spawnRecipe(type, { x, y, z });
             return;
         }
@@ -46,36 +64,47 @@ export class EntityManager {
     async spawnRecipe(recipeId, pos) {
         const recipe = await this.loadRecipe(recipeId);
         if (recipe) {
-            this.createFromRecipe(recipe, pos);
+            console.log(`✨ Triggering creation for: ${recipeId}`);
+            return this.createFromRecipe(recipe, pos);
         }
+        return null;
     }
 
     async loadRecipe(recipeId) {
-        try {
-            // Try different paths depending on whether we are in Editor or Core context
-            const paths = [
-                `/_content/BlazorVerse.Core/data/monsters/${recipeId}.json`,
-                `/data/monsters/${recipeId}.json`,
-                `/_content/BlazorVerse.Core/data/buildings/${recipeId}.json`,
-                `/data/buildings/${recipeId}.json`,
-                `/_content/BlazorVerse.Core/data/recipes/${recipeId}.json`,
-                `/data/recipes/${recipeId}.json`,
-                `/_content/BlazorVerse.Core/data/dashboard/${recipeId}.json`,
-                `/data/dashboard/${recipeId}.json`
-            ];
+        const paths = [];
 
-            for (const path of paths) {
-                try {
-                    const response = await fetch(path);
-                    if (response.ok) return await response.json();
-                } catch (e) { }
-            }
-            console.error(`Could not load recipe: ${recipeId}`);
-            return null;
-        } catch (err) {
-            console.error("Error fetching recipe:", err);
-            return null;
+        // 1. Check manifest first to avoid guessing (prevents 404 logs)
+        const manifestPath = this.assetManifest.get(recipeId);
+        if (manifestPath) {
+            paths.push(`/_content/BlazorVerse.Core/data/${manifestPath}`);
+            paths.push(`/data/${manifestPath}`);
         }
+
+        // 2. Fallbacks if manifest is missing or entry is not found
+        if (paths.length === 0) {
+            paths.push(`/_content/BlazorVerse.Core/data/buildings/${recipeId}.json`);
+            paths.push(`/_content/BlazorVerse.Core/data/monsters/${recipeId}.json`);
+            paths.push(`/_content/BlazorVerse.Core/data/dashboard/${recipeId}.json`);
+            paths.push(`/data/buildings/${recipeId}.json`);
+            paths.push(`/data/monsters/${recipeId}.json`);
+            paths.push(`/data/dashboard/${recipeId}.json`);
+        }
+
+        for (const path of paths) {
+            try {
+                const response = await fetch(path);
+                if (response.ok) {
+                    const json = await response.json();
+                    console.log(`📖 Recipe '${recipeId}' loaded from: ${path}`);
+                    return json;
+                }
+            } catch (e) {
+                // Silently move to next path
+            }
+        }
+
+        console.error(`❌ Could not load recipe: ${recipeId} (Tried ${paths.length} locations)`);
+        return null;
     }
 
     deleteMesh(id) {
@@ -329,9 +358,11 @@ export class EntityManager {
 
         if (root.metadata.behavior.type === "spawner") {
             root.metadata.ownerName = "New Spawner";
+            const b = root.metadata.behavior;
             root.metadata.spawner = {
-                spawnType: "goblin", // Default
-                frequency: 10 // Seconds
+                spawnType: b.spawnType || "goblin",
+                frequency: b.frequency || 10,
+                maxSpawned: b.maxSpawned || 10
             };
         }
         if (root.metadata.behavior.type === "building") {

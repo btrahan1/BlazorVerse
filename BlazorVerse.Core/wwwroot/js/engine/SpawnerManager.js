@@ -28,28 +28,63 @@ export class SpawnerManager {
             const meta = spawner.metadata.spawner;
             if (!meta.spawnType || !meta.frequency) return;
 
-            if (!spawner._lastSpawn) spawner._lastSpawn = now;
+            // Initialize active tracking if not present
+            if (!spawner._activeSpawns) spawner._activeSpawns = [];
+
+            const frequencyMs = (meta.frequency || 10) * 1000;
+            const max = meta.maxSpawned || 10;
+
+            // If this is the first time we've seen this spawner, trigger an instant spawn if under cap
+            if (spawner._lastSpawn === undefined) {
+                console.log(`🎬 Initializing spawner: ${spawner.name}`);
+                if (spawner._activeSpawns.length < max) {
+                    this.spawn(spawner);
+                }
+                spawner._lastSpawn = now;
+                return;
+            }
 
             const elapsed = now - spawner._lastSpawn;
-            const frequencyMs = (meta.frequency || 10) * 1000;
 
             if (elapsed >= frequencyMs) {
                 spawner._lastSpawn = now;
-                this.spawn(spawner);
+
+                // Only spawn if under the cap
+                if (spawner._activeSpawns.length < max) {
+                    this.spawn(spawner);
+                } else {
+                    // Silently log cap reached to avoid spam, or only once
+                    if (!spawner._capLogged) {
+                        console.log(`⏳ Spawner ${spawner.name} at max capacity (${max})`);
+                        spawner._capLogged = true;
+                    }
+                }
+            } else {
+                spawner._capLogged = false; // Reset log flag when cooldown is active
             }
         });
     }
 
-    spawn(spawner) {
+    async spawn(spawner) {
         const meta = spawner.metadata.spawner;
         console.log(`🌀 Spawner ${spawner.name} is spawning ${meta.spawnType}...`);
 
         // Spawn at spawner position with a small offset
         const pos = spawner.position.clone();
-        pos.x += (Math.random() - 0.5) * 2;
-        pos.z += (Math.random() - 0.5) * 2;
-        pos.y += 1.0; // Ensure spawn above ground
+        pos.x += (Math.random() - 0.5) * 3;
+        pos.z += (Math.random() - 0.5) * 3;
+        pos.y += 1.0;
 
-        this.entityManager.spawnRecipe(meta.spawnType, pos);
+        const mob = await this.entityManager.spawnRecipe(meta.spawnType, pos);
+        if (mob) {
+            // Track this mob
+            spawner._activeSpawns.push(mob.id);
+
+            // Auto-cleanup when mob is destroyed
+            mob.onDisposeObservable.add(() => {
+                spawner._activeSpawns = spawner._activeSpawns.filter(id => id !== mob.id);
+                console.log(`📉 Entity ${mob.id} removed from spawner ${spawner.name} tracking.`);
+            });
+        }
     }
 }

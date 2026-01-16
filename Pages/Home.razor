@@ -98,6 +98,16 @@
                 }
             </optgroup>
         }
+
+        @if (_workerList.Any())
+        {
+            <optgroup label="WORKERS">
+                @foreach (var w in _workerList)
+                {
+                    <option value="@w.Id">@w.Name</option>
+                }
+            </optgroup>
+        }
     </select>
     
     <button class="btn-hud w-100 mb-2" @onclick="AddShape">SPAWN ENTITY</button>
@@ -276,14 +286,25 @@
                     {
                         <div class="hud-label">SPAWN TYPE:</div>
                         <select class="hud-input w-100 mb-2" value="@_selection.Metadata.Spawner.SpawnType" @onchange="OnSpawnTypeChanged">
-                            @foreach (var m in _monsterList)
-                            {
-                                <option value="@m.Id">@m.Name</option>
-                            }
+                            <optgroup label="MONSTERS">
+                                @foreach (var m in _monsterList)
+                                {
+                                    <option value="@m.Id">@m.Name</option>
+                                }
+                            </optgroup>
+                            <optgroup label="WORKERS">
+                                @foreach (var w in _workerList)
+                                {
+                                    <option value="@w.Id">@w.Name</option>
+                                }
+                            </optgroup>
                         </select>
 
                         <div class="hud-label">FREQUENCY (SEC):</div>
                         <input type="number" class="hud-input w-100 mb-2" @bind="_selection.Metadata.Spawner.Frequency" @onblur="UpdateMetadata" />
+
+                        <div class="hud-label">MAX POPULATION:</div>
+                        <input type="number" class="hud-input w-100 mb-2" value="@_selection.Metadata.Spawner.MaxSpawned" @onchange="OnMaxSpawnedChanged" />
                     }
 
                     @if (_selection.Metadata.Dashboard != null)
@@ -331,6 +352,7 @@
     private int _playerHp = 100;
 
     private List<AssetInfo> _monsterList = new();
+    private List<AssetInfo> _workerList = new();
     private List<AssetInfo> _buildingList = new();
     private List<AssetInfo> _inventoryList = new();
     private List<AssetInfo> _dashboardList = new();
@@ -364,7 +386,11 @@
                 // Normalize path to forward slashes for cross-platform matching
                 var normalizedPath = item.Path.Replace("\\", "/").ToLower();
 
-                if (normalizedPath.Contains("monsters/")) _monsterList.Add(info);
+                if (normalizedPath.Contains("monsters/")) 
+                {
+                    if (normalizedPath.Contains("worker")) _workerList.Add(info);
+                    else _monsterList.Add(info);
+                }
                 else if (normalizedPath.Contains("buildings/")) _buildingList.Add(info);
                 else if (normalizedPath.Contains("inventories/")) _inventoryList.Add(info);
                 else if (normalizedPath.Contains("dashboard/business_data/")) _inventoryDataList.Add(info);
@@ -538,6 +564,15 @@
         if (_selection?.Metadata?.Spawner != null)
         {
             _selection.Metadata.Spawner.SpawnType = e.Value?.ToString() ?? "goblin";
+            await UpdateMetadata();
+        }
+    }
+
+    private async Task OnMaxSpawnedChanged(ChangeEventArgs e)
+    {
+        if (_selection?.Metadata?.Spawner != null && int.TryParse(e.Value?.ToString(), out int val))
+        {
+            _selection.Metadata.Spawner.MaxSpawned = val;
             await UpdateMetadata();
         }
     }
